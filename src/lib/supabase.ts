@@ -11,9 +11,43 @@ import { createClient, RealtimeChannel } from "@supabase/supabase-js";
 // NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 // SUPABASE_SERVICE_ROLE_KEY=your-service-key  ← server only
 
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+function createSupabaseClient() {
+  if (!supabaseUrl) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL environment variable.");
+  }
+  if (!supabaseAnonKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable.");
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
+
+let _supabase: any = null;
+export const supabase: any = new Proxy(
+  {} as any,
+  {
+    get(target, prop) {
+      if (!_supabase) {
+        _supabase = createSupabaseClient();
+      }
+      return Reflect.get(_supabase, prop);
+    },
+    set(target, prop, value) {
+      if (!_supabase) {
+        _supabase = createSupabaseClient();
+      }
+      return Reflect.set(_supabase, prop, value);
+    },
+    apply(target, thisArg, argArray) {
+      if (!_supabase) {
+        _supabase = createSupabaseClient();
+      }
+      return _supabase.apply(thisArg, argArray);
+    },
+  }
 );
 
 // ── TYPES ─────────────────────────────────────────────────
@@ -206,7 +240,7 @@ export const auth = {
 
   /** Subscribe to auth state changes */
   onAuthChange(callback: (session: any) => void) {
-    return supabase.auth.onAuthStateChange((_event, session) => callback(session));
+    return supabase.auth.onAuthStateChange((event: string, session: any) => callback(session));
   },
 };
 
@@ -621,7 +655,7 @@ export const courtApi = {
 
     // Enrich with current match
     const enriched = await Promise.all(
-      (courts ?? []).map(async (court) => {
+      (courts ?? []).map(async (court: Court) => {
         const { data: liveMatch } = await supabase
           .from("matches")
           .select(`*, team1:teams!matches_team1_id_fkey(*), team2:teams!matches_team2_id_fkey(*)`)
@@ -705,7 +739,7 @@ export const realtime = {
           table: "matches",
           filter: `tournament_id=eq.${tournamentId}`,
         },
-        async (payload) => {
+        async (payload: any) => {
           // Re-fetch with joins for full data
           if (payload.new && (payload.new as any).id) {
             const match = await matchApi.get((payload.new as any).id);
@@ -752,7 +786,7 @@ export const realtime = {
           table: "notifications",
           filter: `tournament_id=eq.${tournamentId}`,
         },
-        (payload) => callback(payload.new as Notification)
+        (payload: any) => callback(payload.new as Notification)
       )
       .subscribe();
   },
