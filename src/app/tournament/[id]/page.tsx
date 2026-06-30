@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   useAuth,
   useTournament,
   useMatches,
   useStandings,
   useTeams,
+  useGroups,
+  useCourts,
   useNotifications,
 } from "@/hooks/useTournament";
 
@@ -17,8 +20,15 @@ type TournamentPageProps = {
 };
 
 export default function TournamentPage({ params }: TournamentPageProps) {
+  const router = useRouter();
   const tournamentId = params.id;
   const { profile, loading: authLoading, isAdmin, isScorer } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !profile) {
+      router.push("/auth/login");
+    }
+  }, [profile, authLoading, router]);
   const { data: tournament, loading: tournamentLoading, error: tournamentError } = useTournament(tournamentId);
   const {
     matches,
@@ -33,6 +43,8 @@ export default function TournamentPage({ params }: TournamentPageProps) {
   } = useMatches(tournamentId);
   const { standings, byGroup, loading: standingsLoading } = useStandings(tournamentId);
   const { teams, loading: teamsLoading, error: teamsError, addTeam } = useTeams(tournamentId);
+  const { groups, loading: groupsLoading, error: groupsError } = useGroups(tournamentId);
+  const { data: courts, loading: courtsLoading, error: courtsError } = useCourts(tournamentId);
   const { notifications, unread, send, markRead } = useNotifications(tournamentId);
 
   const [teamName, setTeamName] = useState("");
@@ -40,12 +52,26 @@ export default function TournamentPage({ params }: TournamentPageProps) {
   const [notifText, setNotifText] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const isLoading = authLoading || tournamentLoading || matchesLoading || standingsLoading || teamsLoading;
+  if (authLoading || (!authLoading && !profile)) {
+    return (
+      <main className="min-h-screen bg-void flex items-center justify-center">
+        <div className="text-emerald-400 text-lg animate-pulse">Loading tournament…</div>
+      </main>
+    );
+  }
+
+  const isLoading = tournamentLoading || matchesLoading || standingsLoading || teamsLoading || groupsLoading || courtsLoading;
 
   async function handleAddTeam() {
     setErrorMessage("");
-    if (!teamName.trim()) {
+    const trimmedTeamName = teamName.trim();
+    if (!trimmedTeamName) {
       setErrorMessage("Enter a team name first.");
+      return;
+    }
+
+    if (teams.some((team) => team.name.trim().toLowerCase() === trimmedTeamName.toLowerCase())) {
+      setErrorMessage("A team with this name already exists in the tournament.");
       return;
     }
 
@@ -55,7 +81,7 @@ export default function TournamentPage({ params }: TournamentPageProps) {
       .filter(Boolean);
 
     try {
-      await addTeam(teamName.trim(), players);
+      await addTeam(trimmedTeamName, players);
       setTeamName("");
       setTeamPlayers("");
     } catch (error: any) {
@@ -78,9 +104,9 @@ export default function TournamentPage({ params }: TournamentPageProps) {
     }
   }
 
-  function handleScoreUpdate(matchId: string, currentScore: number | null, increment: number) {
+  function handleScoreUpdate(matchId: string, currentScore: number | null, increment: number, teamIndex: 1 | 2 = 1) {
     const s = Math.max(0, (currentScore ?? 0) + increment);
-    return updateScore(matchId, s, 0);
+    return updateScore(matchId, teamIndex === 1 ? s : 0, teamIndex === 2 ? s : 0);
   }
 
   return (
@@ -120,11 +146,26 @@ export default function TournamentPage({ params }: TournamentPageProps) {
           </div>
         ) : null}
 
-        {tournamentError || matchesError || teamsError ? (
+        {tournamentError || matchesError || teamsError || groupsError || courtsError ? (
           <div className="mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100">
-            {tournamentError ?? matchesError ?? teamsError}
+            {tournamentError ?? matchesError ?? teamsError ?? groupsError ?? courtsError}
           </div>
         ) : null}
+
+        <section className="mb-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Courts</p>
+            <p className="mt-3 text-sm text-slate-200">{courts?.map((court) => court.name).join(", ") || "No courts configured"}</p>
+          </div>
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Groups</p>
+            <p className="mt-3 text-sm text-slate-200">{groups.map((group) => `Group ${group.name}`).join(", ") || "No groups configured"}</p>
+          </div>
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Teams</p>
+            <p className="mt-3 text-sm text-slate-200">{teams.map((team) => team.name).join(", ") || "No teams configured"}</p>
+          </div>
+        </section>
 
         <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
           <div className="space-y-6">

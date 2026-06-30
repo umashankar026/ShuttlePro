@@ -2,13 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useTournament";
 import { tournamentApi } from "@/lib/supabase";
 import type { Tournament } from "@/lib/supabase";
 
 export default function TournamentsPage() {
+  const router = useRouter();
+  const { profile, loading: authLoading } = useAuth();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !profile) {
+      router.push("/auth/login");
+    }
+  }, [profile, authLoading, router]);
 
   useEffect(() => {
     (async () => {
@@ -22,6 +32,14 @@ export default function TournamentsPage() {
       }
     })();
   }, []);
+
+  if (authLoading || (!authLoading && !profile)) {
+    return (
+      <main className="min-h-screen bg-void flex items-center justify-center">
+        <div className="text-emerald-400 text-lg animate-pulse">Loading tournaments…</div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">

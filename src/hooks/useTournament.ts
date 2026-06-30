@@ -9,7 +9,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  supabase,
   auth,
   tournamentApi,
   teamApi,
@@ -28,6 +27,7 @@ import {
   type Notification,
   type Profile,
 } from "@/lib/supabase";
+type Unsubscribable = { unsubscribe: () => void };
 
 // ── Generic async state helper ────────────────────────────
 function useAsync<T>(fn: () => Promise<T>, deps: any[] = []) {
@@ -143,7 +143,7 @@ export function useMatches(tournamentId: string) {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<Unsubscribable | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -228,12 +228,15 @@ export function useMatches(tournamentId: string) {
 export function useStandings(tournamentId: string) {
   const [standings, setStandings] = useState<Standing[]>([]);
   const [loading, setLoading]     = useState(true);
-  const channelRef = useRef<any>(null);
+  const [error, setError]         = useState<string | null>(null);
+  const channelRef = useRef<Unsubscribable | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       setStandings(await standingsApi.list(tournamentId));
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -252,7 +255,7 @@ export function useStandings(tournamentId: string) {
     return acc;
   }, {});
 
-  return { standings, byGroup, loading, refetch: load };
+  return { standings, byGroup, loading, error, refetch: load };
 }
 
 // ============================================================
@@ -268,7 +271,7 @@ export function useCourts(tournamentId: string) {
 export function useNotifications(tournamentId: string) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread]               = useState(0);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<Unsubscribable | null>(null);
 
   useEffect(() => {
     notifApi.list(tournamentId).then((list) => {

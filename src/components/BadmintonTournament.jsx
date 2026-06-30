@@ -577,7 +577,7 @@ export default function App() {
   );
 
   const TABS = [
-    { id: "dashboard", label: "Dashboard", icon: "🏠" },
+    { id: "dashboard", label: "Home", icon: "🏠" },
     { id: "matches", label: "Matches", icon: "🏸" },
     { id: "standings", label: "Standings", icon: "📊" },
     { id: "bracket", label: "Bracket", icon: "🏆" },

@@ -12,6 +12,9 @@ out/
 .env.local
 .env.*.local
 
+.agents
+.next
+
 # misc
 .DS_Store
 *.pem
