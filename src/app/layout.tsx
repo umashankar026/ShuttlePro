@@ -1,9 +1,9 @@
-import type { Metadata, Viewport } from "next";
+ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ShuttlePro — Badminton Tournament Management System",
-  description: "Premium real-time badminton tournament management",
+  title: "ShuttlePro — Tournament Platform",
+  description: "Premium real-time tournament management",
   manifest: "/manifest.json",
 };
 
